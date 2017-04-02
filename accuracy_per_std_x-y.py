@@ -4,9 +4,6 @@ import os.path
 import argparse
 import numpy as np
 import sympy as sp
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import matplotlib.pyplot as plt
 
 plt.rc('text', usetex=True)
@@ -32,17 +29,19 @@ MAX_X = 10
 NUM_VALS = 100              # number of source values
 
 PRECISE_ALPHA = 0           # real 'alpha' value of source distribution
-PRECISE_BETA = 0.5          # real 'beta' value of source distiribution
+PRECISE_BETA = 5            # real 'beta' value of source distiribution
+
+ERR_NUM_STD_ITER = 20       # number of stds iterations
 
 ERR_MIN_STD_X = 0.000       # minimal std of X error values
 ERR_MAX_STD_X = 2.000       # maximal std of X error values
+ERR_STD_STEP_X = (ERR_MAX_STD_X - ERR_MIN_STD_X) / ERR_NUM_STD_ITER
 
 ERR_MIN_STD_Y = 0.000       # minimal std of Y error values
 ERR_MAX_STD_Y = 2.000       # maximal std of Y error values
+ERR_STD_STEP_Y = (ERR_MAX_STD_Y - ERR_MIN_STD_Y) / ERR_NUM_STD_ITER
 
-ERR_NUM_STD_ITER = 10       # number of stds iterations
-
-NUM_ITER = 10               # number of realizations
+NUM_ITER = 100              # number of realizations
 
 
 ################
@@ -55,19 +54,26 @@ parser.add_argument('-w', '--write-to', metavar='PATH',
                     type=str, help='file to write plot in')
 args = parser.parse_args()
 
-print('Expression:    {}'.format(SYM_EXPR))
-print('Real ALPHA:    {}'.format(PRECISE_ALPHA))
-print('Real BETA:     {}'.format(PRECISE_BETA))
-print('Real X:        {}..{}'.format(MIN_X, MAX_X))
-print('STD X:         {}..{}'.format(ERR_MIN_STD_X, ERR_MAX_STD_X))
-print('STD Y:         {}..{}'.format(ERR_MIN_STD_Y, ERR_MAX_STD_Y))
-print('Number of iterations: {}'.format(ERR_NUM_STD_ITER * NUM_ITER))
+print('Expression:           {}'.format(SYM_EXPR))
+print('Real ALPHA:           {}'.format(PRECISE_ALPHA))
+print('Real BETA:            {}'.format(PRECISE_BETA))
+print('Real X:               {}..{}'.format(MIN_X, MAX_X))
+print('STD X:                {}..{}'.format(ERR_MIN_STD_X, ERR_MAX_STD_X))
+print('STD X step:           {}'.format(ERR_STD_STEP_X))
+print('STD Y:                {}..{}'.format(ERR_MIN_STD_Y, ERR_MAX_STD_Y))
+print('STD Y step:           {}'.format(ERR_STD_STEP_Y))
+print('Number of iterations: {}'.format(NUM_ITER))
 
 # build precise values
 precise_expr = sp.lambdify(
     SYM_X,
     SYM_EXPR.subs({SYM_ALPHA: PRECISE_ALPHA, SYM_BETA: PRECISE_BETA}),
     'numpy')
+precise_vectorized = np.vectorize(precise_expr)
+# get precise values
+precise_vals_x, precise_vals_y = estimators.precise(
+    precise_expr, NUM_VALS,
+    MIN_X, MAX_X)
 
 # generate array of X error stds
 err_stds_x = np.linspace(ERR_MIN_STD_X, ERR_MAX_STD_X, ERR_NUM_STD_ITER)
@@ -77,200 +83,154 @@ err_stds_y = np.linspace(ERR_MIN_STD_Y, ERR_MAX_STD_Y, ERR_NUM_STD_ITER)
 err_stds_x, err_stds_y = np.meshgrid(err_stds_x, err_stds_y)
 # collect accuracies of estimates
 lse_param_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
-lse_predict_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
+lse_predict_measured_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
+lse_predict_precise_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
 pearson_param_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
-pearson_predict_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
+pearson_predict_measured_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
+pearson_predict_precise_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
 
+num_std_iter = ERR_NUM_STD_ITER**2
+std_iter = 0
 for std_i, err_std_row in enumerate(np.dstack((err_stds_x, err_stds_y))):
-    row_lse_param_accs = np.zeros(ERR_NUM_STD_ITER)
-    row_lse_predict_accs = np.zeros(ERR_NUM_STD_ITER)
-    row_pearson_predict_accs = np.zeros(ERR_NUM_STD_ITER)
-    row_pearson_param_accs = np.zeros(ERR_NUM_STD_ITER)
-
     for std_j, (err_std_x, err_std_y) in enumerate(err_std_row):
+        std_iter += 1
+        print("Iteration {}/{}: std X: {:.2f}, std Y: {:.2f}".format(
+              std_iter, num_std_iter, err_std_x, err_std_y))
+
         # current accuracies for this std
         cur_lse_param_acc = 0
-        cur_lse_predict_acc = 0
+        cur_lse_predict_measured_acc = 0
+        cur_lse_predict_precise_acc = 0
         cur_pearson_param_acc = 0
-        cur_pearson_predict_acc = 0
+        cur_pearson_predict_measured_acc = 0
+        cur_pearson_predict_precise_acc = 0
 
         # iterate by error standart derivation values
         for iter_i in range(NUM_ITER):
-            # get precise values
-            precise_vals_x, precise_vals_y = estimators.precise(
-                precise_expr, NUM_VALS,
-                MIN_X, MAX_X)
-            # get values with errors
-            estimated_vals_x, estimated_vals_y = estimators.uniform(
+            # get mesured values with errors
+            measured_vals_x, measured_vals_y = estimators.uniform(
                 precise_expr, NUM_VALS,
                 MIN_X, MAX_X,
                 err_std_x, err_std_y)
             # get control values with errors
-            control_vals_x, control_vals_y = estimators.uniform(
+            control_measured_vals_x, control_measured_vals_y = estimators.uniform(
                 precise_expr, NUM_VALS,
                 MIN_X, MAX_X,
                 err_std_x, err_std_y)
+            # get precise control output values
+            control_precise_vals_y = precise_vectorized(control_measured_vals_x)
 
             # compute LSE parameter estimations
-            lse_alpha, lse_beta = methods.linear_lse(estimated_vals_x, estimated_vals_y)
-            # compute LSE parameter accuracy
-            lse_param_accuracy = accuracy.avg_euclidean_dst(
-                np.array([[PRECISE_ALPHA], [PRECISE_BETA]]),
-                np.array([lse_alpha, lse_beta]))
-            cur_lse_param_acc += lse_param_accuracy
-            # compute LSE prediction accuracy
-            lse_expr = sp.lambdify(
+            lse_alpha, lse_beta = methods.linear_lse(measured_vals_x, measured_vals_y)
+            lse_lambda = sp.lambdify(
                 SYM_X,
                 SYM_EXPR.subs({SYM_ALPHA: lse_alpha, SYM_BETA: lse_beta}),
                 'numpy')
-            lse_predict_accuracy = accuracy.avg_euclidean_dst(
-                control_vals_y,
-                np.vectorize(lse_expr)(control_vals_x))
-            cur_lse_predict_acc += lse_predict_accuracy
+            # compute LSE parameter accuracy
+            lse_param_acc = accuracy.avg_euclidean_dst(
+                np.array([[PRECISE_ALPHA], [PRECISE_BETA]]),
+                np.array([lse_alpha, lse_beta]))
+            cur_lse_param_acc += lse_param_acc
+            # compute LSE predicted values by control input
+            lse_vectorized = np.vectorize(lse_lambda)
+            lse_control_vals_y = lse_vectorized(control_measured_vals_x)
+            # compute LSE prediction accuracy against measured values
+            lse_predict_measured_acc = accuracy.avg_euclidean_dst(
+                control_measured_vals_y,
+                lse_control_vals_y)
+            cur_lse_predict_measured_acc += lse_predict_measured_acc
+            # compute LSE prediction accuracy against precise values
+            lse_predict_precise_acc = accuracy.avg_euclidean_dst(
+                control_precise_vals_y,
+                lse_control_vals_y)
+            cur_lse_predict_precise_acc += lse_predict_precise_acc
 
             # compute Pearson's parameter estimations
-            pearson_alpha, pearson_beta = methods.linear_pearson(estimated_vals_x, estimated_vals_y)
-            # compute Pearson's parameter accuracy
-            pearson_param_accuracy = accuracy.avg_euclidean_dst(
-                np.array([[PRECISE_ALPHA], [PRECISE_BETA]]),
-                np.array([pearson_alpha, pearson_beta]))
-            cur_pearson_param_acc += pearson_param_accuracy
-            # compute Pearson prediction accuracy
-            pearson_expr = sp.lambdify(
+            pearson_alpha, pearson_beta = methods.linear_pearson(measured_vals_x, measured_vals_y)
+            pearson_lambda = sp.lambdify(
                 SYM_X,
                 SYM_EXPR.subs({SYM_ALPHA: pearson_alpha, SYM_BETA: pearson_beta}),
                 'numpy')
-            pearson_predict_accuracy = accuracy.avg_euclidean_dst(
-                control_vals_y,
-                np.vectorize(pearson_expr)(control_vals_x))
-            cur_pearson_predict_acc += pearson_predict_accuracy
+            # compute Pearson's parameter accuracy
+            pearson_param_acc = accuracy.avg_euclidean_dst(
+                np.array([[PRECISE_ALPHA], [PRECISE_BETA]]),
+                np.array([pearson_alpha, pearson_beta]))
+            cur_pearson_param_acc += pearson_param_acc
+            # compute LSE predicted values by control input
+            pearson_vectorized = np.vectorize(pearson_lambda)
+            pearson_control_vals_y = pearson_vectorized(control_measured_vals_x)
+            # compute Pearson prediction accuracy against measured values
+            pearson_predict_measured_acc = accuracy.avg_euclidean_dst(
+                control_measured_vals_y,
+                pearson_control_vals_y)
+            cur_pearson_predict_measured_acc += pearson_predict_measured_acc
+            # compute Pearson prediction accuracy against precise values
+            pearson_predict_precise_acc = accuracy.avg_euclidean_dst(
+                control_precise_vals_y,
+                pearson_control_vals_y)
+            cur_pearson_predict_precise_acc += pearson_predict_precise_acc
 
-        row_lse_param_accs[std_j] = cur_lse_param_acc / NUM_ITER
-        row_lse_predict_accs[std_j] = cur_lse_predict_acc / NUM_ITER
-        row_pearson_param_accs[std_j] = cur_pearson_param_acc / NUM_ITER
-        row_pearson_predict_accs[std_j] = cur_pearson_predict_acc / NUM_ITER
+        lse_param_accs[std_i, std_j] = cur_lse_param_acc
+        lse_predict_measured_accs[std_i, std_j] = cur_lse_predict_measured_acc
+        lse_predict_precise_accs[std_i, std_j] = cur_lse_predict_precise_acc
+        pearson_param_accs[std_i, std_j] = cur_pearson_param_acc
+        pearson_predict_measured_accs[std_i, std_j] = cur_pearson_predict_measured_acc
+        pearson_predict_precise_accs[std_i, std_j] = cur_pearson_predict_precise_acc
 
-    print(row_lse_param_accs)
+# get averages by number of iterations
+lse_param_accs /= NUM_ITER
+lse_predict_measured_accs /= NUM_ITER
+lse_predict_precise_accs /= NUM_ITER
+pearson_param_accs /= NUM_ITER
+pearson_predict_measured_accs /= NUM_ITER
+pearson_predict_precise_accs /= NUM_ITER
 
-    lse_param_accs[std_i] = row_lse_param_accs
-    lse_predict_accs[std_i] = row_lse_predict_accs
-    pearson_param_accs[std_i] = row_pearson_param_accs
-    pearson_predict_accs[std_i] = row_pearson_predict_accs
-
-# print(err_stds_x)
-# print(err_stds_y)
-# print(lse_accs)
-# print(pearson_accs)
+# compute differences between accuracies
+param_accs_diff = lse_param_accs - pearson_param_accs
+predict_precise_accs_diff = lse_predict_precise_accs - pearson_predict_precise_accs
+predict_measured_accs_diff = lse_predict_measured_accs - pearson_predict_measured_accs
 
 fig = plt.figure(0)
-ax = fig.gca(projection='3d')
-ax.view_init(elev=10., azim=-140)
-ax.set_xlabel('$ \\sigma_x $')
-ax.set_ylabel('$ \\sigma_y $')
-ax.set_zlabel('$ \\rho_{param} $')
-ax.zaxis.set_major_locator(LinearLocator(10))
-ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-surface_lse = ax.plot_surface(
-    err_stds_x, err_stds_y, lse_param_accs,
-    rstride=1, cstride=1,
-    cmap=cm.Greens,
-    label='LSE'
-)
-surface_pearson = ax.plot_surface(
-    err_stds_x, err_stds_y, pearson_param_accs,
-    rstride=1, cstride=1,
-    cmap=cm.Blues,
-    label='Pearson'
-)
-bar_lse = plt.Rectangle((0, 0), 0.1, 0.1, fc='g')
-bar_pearson = plt.Rectangle((0, 0), 0.1, 0.1, fc='b')
-ax.legend((bar_lse, bar_pearson), ("LSE", "Pearson"))
+contour_param = plt.contour(
+    err_stds_x, err_stds_y, param_accs_diff)
+plt.title('$ d_{param_{LSE}} - d_{param_{Pearson}} $')
+plt.clabel(contour_param, inline=True, fontsize=10)
+plt.xlabel('$ \sigma_{\epsilon} $')
+plt.ylabel('$ \sigma_{\delta} $')
 
-# fig = plt.figure(2)
-# ax = fig.gca(projection='3d')
-# ax.view_init(elev=10., azim=-140)
-# ax.set_xlabel('$ \\sigma_x $')
-# ax.set_ylabel('$ \\sigma_y $')
-# ax.set_zlabel('$ \\rho_{param_{LSE}} - \\rho_{param_{Pearson}} $')
-# ax.zaxis.set_major_locator(LinearLocator(10))
-# ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-# ax.plot_surface(
-#     err_stds_x, err_stds_y, lse_param_accs - pearson_param_accs,
-#     rstride=1, cstride=1,
-#     cmap=cm.coolwarm,
-#     label='parameter: LSE-Pearson'
-# )
+fig = plt.figure(1)
+contour_predict_precise = plt.contour(
+    err_stds_x, err_stds_y, predict_precise_accs_diff)
+plt.clabel(contour_predict_precise, inline=True, fontsize=10)
+plt.title('$ d_{predict-precise_{LSE}} - d_{predict-precise_{Pearson}} $')
+plt.xlabel('$ \sigma_{\epsilon} $')
+plt.ylabel('$ \sigma_{\delta} $')
 
-# fig = plt.figure(3)
-# ax = fig.gca(projection='3d')
-# ax.view_init(elev=10., azim=-140)
-# ax.set_xlabel('$ \\sigma_x $')
-# ax.set_ylabel('$ \\sigma_y $')
-# ax.set_zlabel('$ \\rho_{predict_{LSE}} $')
-# accs_surf = ax.plot_surface(
-#     err_stds_x, err_stds_y, lse_predict_accs,
-#     rstride=1, cstride=1,
-#     cmap=cm.coolwarm,
-#     label='predict: LSE'
-# )
-# ax.zaxis.set_major_locator(LinearLocator(10))
-# ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-
-# fig = plt.figure(4)
-# ax = fig.gca(projection='3d')
-# ax.view_init(elev=10., azim=-140)
-# ax.set_xlabel('$ \\sigma_x $')
-# ax.set_ylabel('$ \\sigma_y $')
-# ax.set_zlabel('$ \\rho_{param_{Pearson}} $')
-# accs_surf = ax.plot_surface(
-#     err_stds_x, err_stds_y, pearson_predict_accs,
-#     rstride=1, cstride=1,
-#     cmap=cm.coolwarm,
-#     label='predict: Pearson'
-# )
-# ax.zaxis.set_major_locator(LinearLocator(10))
-# ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-
-# fig = plt.figure(5)
-# ax = fig.gca(projection='3d')
-# ax.view_init(elev=10., azim=-140)
-# ax.set_xlabel('$ \\sigma_x $')
-# ax.set_ylabel('$ \\sigma_y $')
-# ax.set_zlabel('$ \\rho_{predict_{LSE}} - \\rho_{_predict{Pearson}} $')
-# accs_surf = ax.plot_surface(
-#     err_stds_x, err_stds_y, lse_predict_accs - pearson_predict_accs,
-#     rstride=1, cstride=1,
-#     cmap=cm.coolwarm,
-#     label='predict: LSE-Pearson'
-# )
-# ax.zaxis.set_major_locator(LinearLocator(10))
-# ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+fig = plt.figure(2)
+contour_predict_measured = plt.contour(
+    err_stds_x, err_stds_y, predict_measured_accs_diff)
+plt.clabel(contour_predict_measured, inline=True, fontsize=10)
+plt.title('$ d_{predict-measured_{LSE}} - d_{predict-measured_{Pearson}} $')
+plt.xlabel('$ \sigma_{\epsilon} $')
+plt.ylabel('$ \sigma_{\delta} $')
 
 if args.write_to:
     file_name, file_ext = os.path.splitext(args.write_to)
+
+    np.save('{}_err-stds-x.npy'.format(file_name), err_stds_x)
+    np.save('{}_err-stds-y.npy'.format(file_name), err_stds_y)
+    np.save('{}_param-accs-diff.npy'.format(file_name), param_accs_diff)
+    np.save('{}_predict-precise-accs-diff.npy'.format(file_name), predict_precise_accs_diff)
+    np.save('{}_predict-measured-accs-diff.npy'.format(file_name), predict_measured_accs_diff)
 
     plt.figure(0)
     plt.savefig('{}_param{}'.format(file_name, file_ext),
                 dpi=200)
 
-    # plt.figure(1)
-    # plt.savefig('{}_pearson-param{}'.format(file_name, file_ext),
-    #             dpi=200)
+    plt.figure(1)
+    plt.savefig('{}_predict-precise{}'.format(file_name, file_ext),
+                dpi=200)
 
-    # plt.figure(2)
-    # plt.savefig('{}_param-diff{}'.format(file_name, file_ext),
-    #             dpi=200)
-
-    # plt.figure(3)
-    # plt.savefig('{}_lse-predict{}'.format(file_name, file_ext),
-    #             dpi=200)
-
-    # plt.figure(4)
-    # plt.savefig('{}_pearson-predict{}'.format(file_name, file_ext),
-    #             dpi=200)
-
-    # plt.figure(5)
-    # plt.savefig('{}_predict-diff{}'.format(file_name, file_ext),
-    #             dpi=200)
-
-plt.show()
+    plt.figure(2)
+    plt.savefig('{}_predict-measured{}'.format(file_name, file_ext),
+                dpi=200)
