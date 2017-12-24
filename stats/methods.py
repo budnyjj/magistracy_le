@@ -21,6 +21,21 @@ def linear_lse(vals_x, vals_y):
     est_beta = np.dot(cf_correlation, np.linalg.inv(var_x))
     return est_alpha - np.dot(est_beta, est_x0), est_beta.flatten()
 
+def linear_lse2(vals_x, vals_y):
+    """Computes coefficients of the linear model using LSE method.
+
+    Parameters:
+        vals_x --- array of free values
+        vals_y --- array of dependent values
+
+    Return:
+        a pair of computed parameters of the linear model.
+    """
+    x_t = np.array((np.ones(vals_x.shape), vals_x))
+    x = x_t.T
+    est = np.dot(np.dot(np.linalg.inv(np.dot(x_t, x)), x_t), vals_y)
+    return np.vstack(est)
+
 def linear_pearson(vals_x, vals_y):
     """Computes coefficients of the linear model using Pearson's method.
 
