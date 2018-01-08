@@ -112,39 +112,39 @@ plt.plot(
     marker='.', markersize=5,
     mfc='g', label="LSE")
 
-# compute Pearson's parameter estimations
+# compute Sa's parameter estimations
 # test code
-# pearson_alpha, pearson_beta = methods.linear_pearson(
+# sa_alpha, sa_beta = methods.linear_sa(
 #     np.array([[2, 16], [2, 26], [4,16], [4,26]]).transpose(),
 #     np.array([219, 261, 127, 231]))
-pearson_alpha, pearson_beta = methods.linear_pearson(estimated_vals_x, estimated_vals_y)
-param_accuracy_pearson = accuracy.avg_euclidean_dst(
+sa_alpha, sa_beta = methods.linear_sa(estimated_vals_x, estimated_vals_y)
+param_accuracy_sa = accuracy.avg_euclidean_dst(
     np.array([[PRECISE_ALPHA], [PRECISE_BETA]]),
-    np.array([pearson_alpha, pearson_beta]))
-pearson_expr = sp.lambdify(
+    np.array([sa_alpha, sa_beta]))
+sa_expr = sp.lambdify(
     SYM_X,
-    SYM_EXPR.subs({SYM_ALPHA: pearson_alpha, SYM_BETA: pearson_beta}),
+    SYM_EXPR.subs({SYM_ALPHA: sa_alpha, SYM_BETA: sa_beta}),
     'numpy')
-estimated_pearson_vals_y = np.vectorize(pearson_expr)(estimated_vals_x)
-predict_estimated_accuracy_pearson = accuracy.avg_euclidean_dst(
+estimated_sa_vals_y = np.vectorize(sa_expr)(estimated_vals_x)
+predict_estimated_accuracy_sa = accuracy.avg_euclidean_dst(
     estimated_vals_y,
-    estimated_pearson_vals_y)
-precise_pearson_vals_y = np.vectorize(pearson_expr)(precise_vals_x)
-predict_precise_accuracy_pearson = accuracy.avg_euclidean_dst(
+    estimated_sa_vals_y)
+precise_sa_vals_y = np.vectorize(sa_expr)(precise_vals_x)
+predict_precise_accuracy_sa = accuracy.avg_euclidean_dst(
     precise_vals_y,
-    precise_pearson_vals_y)
+    precise_sa_vals_y)
 
-print('Pearson ALPHA:                        {}'.format(pearson_alpha))
-print('Pearson BETA:                         {}'.format(pearson_beta))
-print('Pearson param accuracy:               {}'.format(param_accuracy_pearson))
-print('Pearson predict accuracy (estimated): {}'.format(predict_estimated_accuracy_pearson))
-print('Pearson predict accuracy (precise):   {}'.format(predict_precise_accuracy_pearson))
+print('Sa ALPHA:                        {}'.format(sa_alpha))
+print('Sa BETA:                         {}'.format(sa_beta))
+print('Sa param accuracy:               {}'.format(param_accuracy_sa))
+print('Sa predict accuracy (estimated): {}'.format(predict_estimated_accuracy_sa))
+print('Sa predict accuracy (precise):   {}'.format(predict_precise_accuracy_sa))
 
 plt.plot(
-    precise_vals_x, precise_pearson_vals_y,
+    precise_vals_x, precise_sa_vals_y,
     color='b', linestyle='-',
     marker='.', markersize=5,
-    mfc='b', label="Pearson")
+    mfc='b', label="Sa")
 plt.legend(loc=2)
 
 if args.write_to:

@@ -53,22 +53,22 @@ lse_predict_precise_accs = np.load(
     '{}_lse-predict-precise-accs.npy'.format(input_path))
 lse_predict_measured_accs = np.load(
     '{}_lse-predict-measured-accs.npy'.format(input_path))
-pearson_param_accs = np.load(
-    '{}_pearson-param-accs.npy'.format(input_path))
-pearson_predict_precise_accs = np.load(
-    '{}_pearson-predict-precise-accs.npy'.format(input_path))
-pearson_predict_measured_accs = np.load(
-    '{}_pearson-predict-measured-accs.npy'.format(input_path))
+sa_param_accs = np.load(
+    '{}_sa-param-accs.npy'.format(input_path))
+sa_predict_precise_accs = np.load(
+    '{}_sa-predict-precise-accs.npy'.format(input_path))
+sa_predict_measured_accs = np.load(
+    '{}_sa-predict-measured-accs.npy'.format(input_path))
 
 # compute differences between accuracies
-param_accs_diff = lse_param_accs - pearson_param_accs
-predict_precise_accs_diff = lse_predict_precise_accs - pearson_predict_precise_accs
-predict_measured_accs_diff = lse_predict_measured_accs - pearson_predict_measured_accs
+param_accs_diff = lse_param_accs - sa_param_accs
+predict_precise_accs_diff = lse_predict_precise_accs - sa_predict_precise_accs
+predict_measured_accs_diff = lse_predict_measured_accs - sa_predict_measured_accs
 
 plt.figure(0)
 contour_param = plt.contour(
     err_stds_x, err_stds_y, param_accs_diff)
-plt.title('$ d_{param_{LSE}} - d_{param_{Pearson}} $')
+plt.title('$ d_{param_{LSE}} - d_{param_{SA}} $')
 plt.clabel(contour_param, inline=True, fontsize=10)
 plt.xlabel('$ \sigma_{\epsilon} $')
 plt.ylabel('$ \sigma_{\delta} $')
@@ -80,7 +80,7 @@ plt.figure(1)
 contour_predict_precise = plt.contour(
     err_stds_x, err_stds_y, predict_precise_accs_diff)
 plt.clabel(contour_predict_precise, inline=True, fontsize=10)
-plt.title('$ d_{predict-precise_{LSE}} - d_{predict-precise_{Pearson}} $')
+plt.title('$ d_{predict-precise_{LSE}} - d_{predict-precise_{SA}} $')
 plt.xlabel('$ \sigma_{\epsilon} $')
 plt.ylabel('$ \sigma_{\delta} $')
 plt.savefig(
@@ -91,7 +91,7 @@ plt.figure(2)
 contour_predict_measured = plt.contour(
     err_stds_x, err_stds_y, predict_measured_accs_diff)
 plt.clabel(contour_predict_measured, inline=True, fontsize=10)
-plt.title('$ d_{predict-measured_{LSE}} - d_{predict-measured_{Pearson}} $')
+plt.title('$ d_{predict-measured_{LSE}} - d_{predict-measured_{SA}} $')
 plt.xlabel('$ \sigma_{\epsilon} $')
 plt.ylabel('$ \sigma_{\delta} $')
 plt.savefig(

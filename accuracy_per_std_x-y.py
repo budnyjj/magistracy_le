@@ -94,9 +94,9 @@ control_precise_vals_x, control_precise_vals_y = estimators.uniform(
 lse_param_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
 lse_predict_measured_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
 lse_predict_precise_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
-pearson_param_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
-pearson_predict_measured_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
-pearson_predict_precise_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
+sa_param_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
+sa_predict_measured_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
+sa_predict_precise_accs = np.zeros((ERR_NUM_STD_ITER, ERR_NUM_STD_ITER))
 
 num_std_iter = ERR_NUM_STD_ITER**2
 std_iter = 0
@@ -145,39 +145,39 @@ for std_i, err_std_row in enumerate(np.dstack((err_stds_x, err_stds_y))):
                 lse_control_vals_y)
             lse_predict_precise_accs[std_i, std_j] += lse_predict_precise_acc
 
-            # compute Pearson's parameter estimations
-            pearson_alpha, pearson_beta = methods.linear_pearson(
+            # compute Sa's parameter estimations
+            sa_alpha, sa_beta = methods.linear_sa(
                 measured_vals_x, measured_vals_y)
-            pearson_lambda = sp.lambdify(
+            sa_lambda = sp.lambdify(
                 SYM_X,
-                SYM_EXPR.subs({SYM_ALPHA: pearson_alpha, SYM_BETA: pearson_beta}),
+                SYM_EXPR.subs({SYM_ALPHA: sa_alpha, SYM_BETA: sa_beta}),
                 'numpy')
-            # compute Pearson's parameter accuracy
-            pearson_param_acc = accuracy.avg_euclidean_dst(
+            # compute Sa's parameter accuracy
+            sa_param_acc = accuracy.avg_euclidean_dst(
                 np.array([[PRECISE_ALPHA], [PRECISE_BETA]]),
-                np.array([pearson_alpha, pearson_beta]))
-            pearson_param_accs[std_i, std_j] += pearson_param_acc
+                np.array([sa_alpha, sa_beta]))
+            sa_param_accs[std_i, std_j] += sa_param_acc
             # compute LSE predicted values by control input
-            pearson_vectorized = np.vectorize(pearson_lambda)
-            pearson_control_vals_y = pearson_vectorized(control_measured_vals_x)
-            # compute Pearson prediction accuracy against measured values
-            pearson_predict_measured_acc = accuracy.avg_euclidean_dst(
+            sa_vectorized = np.vectorize(sa_lambda)
+            sa_control_vals_y = sa_vectorized(control_measured_vals_x)
+            # compute Sa prediction accuracy against measured values
+            sa_predict_measured_acc = accuracy.avg_euclidean_dst(
                 control_measured_vals_y,
-                pearson_control_vals_y)
-            pearson_predict_measured_accs[std_i, std_j] += pearson_predict_measured_acc
-            # compute Pearson prediction accuracy against precise values
-            pearson_predict_precise_acc = accuracy.avg_euclidean_dst(
+                sa_control_vals_y)
+            sa_predict_measured_accs[std_i, std_j] += sa_predict_measured_acc
+            # compute Sa prediction accuracy against precise values
+            sa_predict_precise_acc = accuracy.avg_euclidean_dst(
                 control_precise_vals_y,
-                pearson_control_vals_y)
-            pearson_predict_precise_accs[std_i, std_j] += pearson_predict_precise_acc
+                sa_control_vals_y)
+            sa_predict_precise_accs[std_i, std_j] += sa_predict_precise_acc
 
 # get averages by number of iterations
 lse_param_accs /= NUM_ITER
 lse_predict_measured_accs /= NUM_ITER
 lse_predict_precise_accs /= NUM_ITER
-pearson_param_accs /= NUM_ITER
-pearson_predict_measured_accs /= NUM_ITER
-pearson_predict_precise_accs /= NUM_ITER
+sa_param_accs /= NUM_ITER
+sa_predict_measured_accs /= NUM_ITER
+sa_predict_precise_accs /= NUM_ITER
 
 np.save(
     '{}_err-stds-x.npy'.format(output_path),
@@ -195,11 +195,11 @@ np.save(
     '{}_lse-predict-measured-accs.npy'.format(output_path),
     lse_predict_measured_accs)
 np.save(
-    '{}_pearson-param-accs.npy'.format(output_path),
-    pearson_param_accs)
+    '{}_sa-param-accs.npy'.format(output_path),
+    sa_param_accs)
 np.save(
-    '{}_pearson-predict-precise-accs.npy'.format(output_path),
-    pearson_predict_precise_accs)
+    '{}_sa-predict-precise-accs.npy'.format(output_path),
+    sa_predict_precise_accs)
 np.save(
-    '{}_pearson-predict-measured-accs.npy'.format(output_path),
-    pearson_predict_measured_accs)
+    '{}_sa-predict-measured-accs.npy'.format(output_path),
+    sa_predict_measured_accs)

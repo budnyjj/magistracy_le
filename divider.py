@@ -57,7 +57,7 @@ accs_diff = np.load('{}_param-accs-diff.npy'.format(file_name))
 contour = plt.contour(
     err_stds_x, err_stds_y, accs_diff)
 plt.clabel(contour, inline=True, fontsize=10)
-plt.title('$ d_{param_{LSE}} - d_{param_{Pearson}} $')
+plt.title('$ d_{param_{LSE}} - d_{param_{Sa}} $')
 plt.xlabel('$ \sigma_{\epsilon} $')
 plt.ylabel('$ \sigma_{\delta} $')
 plt.grid(True)
@@ -76,7 +76,7 @@ plt.plot(
     mfc='r', label="ref. values")
 
 # approximate coordinates with linear function
-approx_alpha, approx_beta = methods.linear_pearson(ref_vals_x, ref_vals_y)
+approx_alpha, approx_beta = methods.linear_sa(ref_vals_x, ref_vals_y)
 print('Approx. alpha: {}'.format(approx_alpha))
 print('Approx. beta:  {}'.format(approx_beta))
 
