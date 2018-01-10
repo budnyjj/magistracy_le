@@ -1,0 +1,5 @@
+Predict. alpha: 0
+Predict. beta:  1.7
+Number of ref. values: 53
+Approx. alpha: [-0.04520079]
+Approx. beta:  [ 1.71737988]

@@ -27,7 +27,7 @@ MAX_X = 10
 NUM_VALS = 100              # number of source values
 
 PRECISE_ALPHA = 0           # real 'alpha' value of source distribution
-PRECISE_BETA = 0            # real 'beta' value of source distiribution
+PRECISE_BETA = -1           # real 'beta' value of source distiribution
 
 ERR_NUM_STD_ITER = 20       # number of stds iterations
 
@@ -128,7 +128,7 @@ for std_i, err_std_row in enumerate(np.dstack((err_stds_x, err_stds_y))):
                 'numpy')
             # compute LSE parameter accuracy
             lse_param_acc = accuracy.avg_euclidean_dst(
-                np.array(((PRECISE_ALPHA), (PRECISE_BETA))),
+                np.array(((PRECISE_ALPHA,), (PRECISE_BETA,))),
                 np.array((lse_alpha, lse_beta)))
             lse_param_accs[std_i, std_j] += lse_param_acc
             # compute LSE predicted values by control input
@@ -154,8 +154,8 @@ for std_i, err_std_row in enumerate(np.dstack((err_stds_x, err_stds_y))):
                 'numpy')
             # compute Sa's parameter accuracy
             sa_param_acc = accuracy.avg_euclidean_dst(
-                np.array([[PRECISE_ALPHA], [PRECISE_BETA]]),
-                np.array([sa_alpha, sa_beta]))
+                np.array(((PRECISE_ALPHA,), (PRECISE_BETA,))),
+                np.array((sa_alpha, sa_beta)))
             sa_param_accs[std_i, std_j] += sa_param_acc
             # compute LSE predicted values by control input
             sa_vectorized = np.vectorize(sa_lambda)

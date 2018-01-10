@@ -67,33 +67,40 @@ predict_measured_accs_diff = lse_predict_measured_accs - sa_predict_measured_acc
 
 plt.figure(0)
 contour_param = plt.contour(
-    err_stds_x, err_stds_y, param_accs_diff)
-plt.title('$ d_{param_{LSE}} - d_{param_{SA}} $')
-plt.clabel(contour_param, inline=True, fontsize=10)
-plt.xlabel('$ \sigma_{\epsilon} $')
-plt.ylabel('$ \sigma_{\delta} $')
+    err_stds_x, err_stds_y, param_accs_diff,
+    colors='black', linestyles='solid')
+# plt.title('$ d_{param_{LSE}} - d_{param_{SA}} $')
+plt.clabel(contour_param, inline=True, fontsize=8)
+plt.xlabel('$ \sigma_{\epsilon_x} $')
+plt.ylabel('$ \sigma_{\epsilon_y} $')
+plt.grid()
 plt.savefig(
     '{}_param{}'.format(output_path, output_ext),
     dpi=200)
 
 plt.figure(1)
 contour_predict_precise = plt.contour(
-    err_stds_x, err_stds_y, predict_precise_accs_diff)
-plt.clabel(contour_predict_precise, inline=True, fontsize=10)
-plt.title('$ d_{predict-precise_{LSE}} - d_{predict-precise_{SA}} $')
-plt.xlabel('$ \sigma_{\epsilon} $')
-plt.ylabel('$ \sigma_{\delta} $')
+    err_stds_x, err_stds_y, predict_precise_accs_diff,
+    colors='black', linestyles='solid')
+plt.clabel(contour_predict_precise, inline=True, fontsize=8)
+# plt.title('$ d_{predict-precise_{LSE}} - d_{predict-precise_{SA}} $')
+plt.xlabel('$ \sigma_{\epsilon_x} $')
+plt.ylabel('$ \sigma_{\epsilon_y} $')
+plt.grid()
 plt.savefig(
     '{}_predict-precise{}'.format(output_path, output_ext),
     dpi=200)
 
 plt.figure(2)
 contour_predict_measured = plt.contour(
-    err_stds_x, err_stds_y, predict_measured_accs_diff)
-plt.clabel(contour_predict_measured, inline=True, fontsize=10)
-plt.title('$ d_{predict-measured_{LSE}} - d_{predict-measured_{SA}} $')
-plt.xlabel('$ \sigma_{\epsilon} $')
-plt.ylabel('$ \sigma_{\delta} $')
+    err_stds_x, err_stds_y, predict_measured_accs_diff,
+    colors='black', linestyles='solid')
+plt.clabel(contour_predict_measured, inline=True, fontsize=8)
+# plt.title('$ d_{predict-measured_{LSE}} - d_{predict-measured_{SA}} $')
+plt.xlabel('$ \sigma_{\epsilon_x} $')
+plt.ylabel('$ \sigma_{\epsilon_y} $')
+plt.grid()
+
 plt.savefig(
     '{}_predict-measured{}'.format(output_path, output_ext),
     dpi=200)
